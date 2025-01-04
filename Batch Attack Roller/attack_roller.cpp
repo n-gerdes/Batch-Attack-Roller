@@ -9,6 +9,30 @@ const static int ROWS = 30;
 const static int COLUMNS = 7;
 const static int SPACE_BETWEEN_COLUMNS = 0;
 
+inline bool is_digits(const std::string& input)
+{
+	for (size_t i = 0; i < input.size(); ++i)
+	{
+		switch (input[i])
+		{
+		case '0': break;
+		case '1': break;
+		case '2': break;
+		case '3': break;
+		case '4': break;
+		case '5': break;
+		case '6': break;
+		case '7': break;
+		case '8': break;
+		case '9': break;
+		case '+': break;
+		case '-': break;
+		default: return false;
+		}
+	}
+	return true;
+}
+
 inline void make_lowercase(std::string& str)
 {
 	for (size_t i = 0; i < str.length(); ++i)
@@ -118,7 +142,7 @@ struct dice
 	}
 };
 
-inline bool dmg(std::string& input, int atk)
+inline bool dmg(std::string& input, int atk, bool prompt_ac, int& ac)
 {
 	std::vector<dice> dmg_dice;
 	std::string temp;
@@ -290,11 +314,35 @@ inline bool dmg(std::string& input, int atk)
 	if (dmg_dice.size() == 0)
 		return false;
 
-	if (false)
+	if (prompt_ac)
 	{
-		for (int i = 0; i < dmg_dice.size(); ++i)
+		std::cout << "Enter Target AC? (Y/N):" << std::endl;
+		std::string ac_input = "";
+		bool first_inp = true;
+		while (ac_input != "y" && ac_input != "Y" && ac_input != "n" && ac_input != "N")
 		{
-			std::cout << dmg_dice[i].dice_count << "d" << dmg_dice[i].sides << " + " << dmg_dice[i].mod << std::endl;
+			if (!first_inp)
+				std::cout << "Y or N only" << std::endl;
+			std::getline(std::cin, ac_input);
+			first_inp = false;
+		}
+
+		ac_input[0] = std::tolower(ac_input[0]);
+		ac = -1;
+
+		if (ac_input == "y")
+		{
+			while (ac == -1)
+			{
+				std::cout << "Enter AC: " << std::endl;
+				std::getline(std::cin, ac_input);
+				if (is_digits(ac_input))
+				{
+					ac = std::stoi(ac_input);
+					if (ac < 0)
+						ac = -1;
+				}
+			}
 		}
 	}
 
@@ -330,7 +378,9 @@ inline bool dmg(std::string& input, int atk)
 			for (size_t i = 0; i < dmg_dice.size(); ++i)
 			{
 				dice& die = dmg_dice[i];
-				print(std::to_string(die.roll()));
+				int roll = die.roll();
+				print(std::to_string(roll));
+
 				if (dmg_dice[i].dmg_type.size() != 0)
 					print(" " + dmg_dice[i].dmg_type);
 				if (i != dmg_dice.size() - 1)
@@ -364,110 +414,168 @@ inline bool dmg(std::string& input, int atk)
 		{
 			if (crit1)
 			{
-				print("CRIT -> ");
+				if(ac==-1)
+					print("CRIT -> ");
 				print_full_crit_dmg();
+				if (ac != -1)
+					print("*");
 				//print("\n");
 			}
 			else
 			{
-				if (atk1_nat1)
-					print("nat1");
+				if (ac == -1)
+				{
+					if (atk1_nat1)
+					{
+						print("nat1");
+					}
+					else
+					{
+						print(std::to_string(atk_roll1));
+						print(" -> ");
+						print_normal_dmg();
+					}
+				}
 				else
 				{
-					print(std::to_string(atk_roll1));
-					print(" -> ");
-					print_normal_dmg();
-					//print("\n");
-				}
-					
+					if (atk_roll1 >= ac && !atk1_nat1)
+					{
+						print_normal_dmg();
+					}
+					else
+					{
+						print("-");
+					}
+				}	
 			}
 		}
 		else
 		{
 			if (!crit1 && !crit2)
 			{
-				print(std::to_string(atk_roll1));
-				print(" / ");
-				print(std::to_string(atk_roll2));
-				print(" -> ");
-				print_normal_dmg();
+				if (ac == -1)
+				{
+					print(std::to_string(atk_roll1));
+					print(" / ");
+					print(std::to_string(atk_roll2));
+					print(" -> ");
+					print_normal_dmg();
+				}
+				else
+				{
+					bool hit1 = !((atk_roll1 < ac) || atk1_nat1);
+					bool hit2 = !((atk_roll2 < ac) || atk2_nat1);
+					if (!hit1 && !hit2)
+					{
+						print("-");
+					}
+					else
+					{
+						
+						if (hit1 && !hit2)
+						{
+							print_normal_dmg();
+							print(" / -");
+						}
+						else if (!hit1 && hit2)
+						{
+							print("- / ");
+							print_normal_dmg();
+						}
+						else if (hit1 && hit2)
+						{
+							print_normal_dmg();
+						}
+					}
+					
+				}
 				//print("\n");
 			}
 			else if (crit1 && !crit2)
 			{
-				print("CRIT / ");
-				if (atk2_nat1)
-					print("nat1");
-				else
-					print(std::to_string(atk_roll2));
 
-				print(" -> ");
-
-				if (atk2_nat1)
+				if (ac == -1)
 				{
-					print_full_crit_dmg();
-					//print("\n");
+					print("CRIT / ");
+					if (atk2_nat1)
+						print("nat1");
+					else
+						print(std::to_string(atk_roll2));
+
+					print(" -> ");
+
+					if (atk2_nat1)
+					{
+						print_full_crit_dmg();
+						//print("\n");
+					}
+					else
+					{
+						print("[");
+						print_full_crit_dmg();
+						print("] / [");
+						print_normal_dmg();
+						print("]");
+					}
 				}
 				else
 				{
-					print("[");
 					print_full_crit_dmg();
-					print("] / [");
-					print_normal_dmg();
-					print("]");
+					print("* / ");
+					if (atk_roll2 >= ac && !atk2_nat1)
+					{
+						print_normal_dmg();
+					}
+					else
+					{
+						print("-");
+					}
 				}
 			}
 			else if (!crit1 && crit2)
 			{
-				if (atk1_nat1)
-					print("nat1");
-				else
-					print(std::to_string(atk_roll1));
-
-				print(" / CRIT -> ");
-
-				if (atk1_nat1)
+				if (ac == -1)
 				{
-					print_full_crit_dmg();
-					//print("\n");
+					if (atk1_nat1)
+						print("nat1");
+					else
+						print(std::to_string(atk_roll1));
+
+					print(" / CRIT -> ");
+
+					if (atk1_nat1)
+					{
+						print_full_crit_dmg();
+						//print("\n");
+					}
+					else
+					{
+						print("[");
+						print_normal_dmg();
+						print("] / [");
+						print_full_crit_dmg();
+						print("]");
+					}
 				}
 				else
 				{
-					print("[");
-					print_normal_dmg();
-					print("] / [");
+					if (atk_roll1 >= ac && !atk1_nat1)
+					{
+						print_normal_dmg();
+						print(" / ");
+					}
+					else
+					{
+						print("- / ");
+					}
 					print_full_crit_dmg();
-					print("]");
+					print("*");
 				}
 			}
 		}
 	}
 	file.close();
 	std::cout << std::endl;
-	return true;
-}
-
-inline bool is_digits(const std::string& input)
-{
-	for (size_t i = 0; i < input.size(); ++i)
-	{
-		switch (input[i])
-		{
-		case '0': break;
-		case '1': break;
-		case '2': break;
-		case '3': break;
-		case '4': break;
-		case '5': break;
-		case '6': break;
-		case '7': break;
-		case '8': break;
-		case '9': break;
-		case '+': break;
-		case '-': break;
-		default: return false;
-		}
-	}
 	return true;
 }
 
@@ -503,23 +611,27 @@ inline void roll_attacks()
 	}
 	else
 	{
+		int ac = -1;
 		bool valid_input = false;
 		std::cout << "Enter damage formula:" << std::endl;
 		while (!valid_input)
 		{
 			std::getline(std::cin, input);
 			//std::cout << "Got raw input '" << input << "'" << std::endl;
-			valid_input = dmg(input, atk);
+			valid_input = dmg(input, atk, true, ac);
 			if (valid_input)
 			{
 				std::string formula = input;
 				std::cout << "Go again?\n";
-				std::getline(std::cin, input);
+				while (input != "y" && input != "Y" && input != "n" && input != "N")
+					std::getline(std::cin, input);
 				while (input == "y" || input == "Y")
 				{
-					dmg(formula, atk);
+					dmg(formula, atk, false, ac);
 					std::cout << "Go again?\n";
-					std::getline(std::cin, input);
+					input = "";
+					while(input != "y" && input != "Y" && input != "n" && input != "N")
+						std::getline(std::cin, input);
 				}
 				return;
 			}
